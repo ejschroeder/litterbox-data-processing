@@ -51,4 +51,4 @@ jobs:
           FLINK_PASSWORD: ${{ secrets.FLINKPASSWORD }}
           ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
         run: |
-          curl -u "$FLINK_USERNAME:$FLINK_PASSWORD" -X POST -H "Expect:" -F "jarfile=@$ARTIFACT_NAME" https://flink.schroeder.lol/jars/upload'
+          curl -u "$FLINK_USERNAME:$FLINK_PASSWORD" -X POST -H "Expect:" -F "jarfile=@$ARTIFACT_NAME" https://flink.schroeder.lol/jars/upload
