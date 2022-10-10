@@ -47,6 +47,12 @@ jobs:
           name: build-artifact
       - shell: bash
         env:
+          ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
+        run: |
+          echo "Artifact: $ARTIFACT_NAME"
+          echo "${{ needs.build.outputs.artifact }}"
+      - shell: bash
+        env:
           FLINK_USERNAME: ${{ secrets.FLINKUSERNAME }}
           FLINK_PASSWORD: ${{ secrets.FLINKPASSWORD }}
           ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
