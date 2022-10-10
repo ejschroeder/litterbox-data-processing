@@ -38,6 +38,7 @@ jobs:
       - name: Output Artifact Name
         run: echo "::set-output name=artifact_name::$ARTIFACT_NAME"
   upload:
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - name: Download build artifact
