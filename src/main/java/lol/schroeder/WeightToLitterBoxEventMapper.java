@@ -85,6 +85,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
             data.setStartTimestamp(event.getTime());
             data.setWatchdogTimestampMillis((event.getTime() * 1000) + WATCHDOG_TIMER_MILLIS);
             log.info("Setting watchdog timer for time={}", data.getWatchdogTimestampMillis());
+
             ctx.timerService().registerEventTimeTimer(data.getWatchdogTimestampMillis());
 
             intermediateData.update(data);

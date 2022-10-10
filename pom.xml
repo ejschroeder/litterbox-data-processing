@@ -4,12 +4,13 @@
 
 	<groupId>lol.schroeder</groupId>
 	<artifactId>litterbox-data-processing</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>${revision}</version>
 	<packaging>jar</packaging>
 
 	<name>Litterbox Data Processing</name>
 
 	<properties>
+		<revision>1.0.0-SNAPSHOT</revision>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>1.15.2</flink.version>
 		<target.java.version>1.8</target.java.version>

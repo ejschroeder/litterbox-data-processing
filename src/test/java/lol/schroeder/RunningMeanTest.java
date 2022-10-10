@@ -40,30 +40,11 @@ public class RunningMeanTest {
 
         csvRecords.sort(Comparator.comparing(csvRecord -> csvRecord.get(2)));
 
-        State currentState = State.STANDBY;
-        double standbyMean = 0;
-        double inBoxMean = 0;
-        String startTimestamp = null;
-
         WindowedRunningStats wrm = new WindowedRunningStats(10);
         for (CSVRecord csvRecord : csvRecords) {
             double sample = Double.parseDouble(csvRecord.get(1));
             String timestamp = csvRecord.get(2);
             double zScore = wrm.getSampleZScore(sample);
-
-//            if (currentState == State.STANDBY && wrm.isBufferFull() && zScore > 6) {
-//                standbyMean = wrm.getMean();
-//                startTimestamp = timestamp;
-//                currentState = State.STEPPING_IN;
-//            } else if (currentState == State.STEPPING_IN && wrm.getSampleStandardDeviation() <= 0.02) {
-//                inBoxMean = wrm.getMean();
-//                currentState = State.IN_BOX;
-//            } else if (currentState == State.IN_BOX && zScore < -6) {
-//                currentState = State.STEPPING_OUT;
-//            } else if (currentState == State.STEPPING_OUT && wrm.getSampleStandardDeviation() <= 0.02) {
-//                System.out.println("Event! Start Timestamp: " + startTimestamp + " End Timestamp: " + timestamp + " Start Weight: " + standbyMean + " In Box Weight: " + inBoxMean + " End Weight: " + wrm.getMean());
-//                currentState = State.STANDBY;
-//            }
 
             wrm.add(sample);
 

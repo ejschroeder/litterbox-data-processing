@@ -7,6 +7,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Continuous Integration Build
+    outputs:
+      artifact: ${{ steps.artifact.outputs.artifact_name }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -25,8 +27,27 @@ jobs:
           distribution: 'temurin'
       - name: Build
         run: mvn -B -Drevision=$GITHUB_RUN_NUMBER verify
+      - name: Extract Artifact Name
+        run: |
+          echo "ARTIFACT_NAME=$(mvn help:evaluate -Drevision=$GITHUB_RUN_NUMBER -Dexpression=project.build.finalName -q -DforceStdout).jar" >> $GITHUB_ENV
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: build-artifact
-          path: target/litterbox-data-processing-*.jar
+          path: target/${{ env.ARTIFACT_NAME }}
+      - name: Output Artifact Name
+        run: echo "::set-output name=artifact_name::$ARTIFACT_NAME"
+  upload:
+    needs: build
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifact
+      - shell: bash
+        env:
+          FLINK_USERNAME: ${{ secrets.FLINKUSERNAME }}
+          FLINK_PASSWORD: ${{ secrets.FLINKPASSWORD }}
+          ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
+        run: |
+          curl -u "$FLINK_USERNAME:$FLINK_PASSWORD" -X POST -H "Expect:" -F "jarfile=@$ARTIFACT_NAME" https://flink.schroeder.lol/jars/upload'
