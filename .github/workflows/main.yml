@@ -36,6 +36,7 @@ jobs:
           name: build-artifact
           path: target/${{ env.ARTIFACT_NAME }}
       - name: Output Artifact Name
+        id: artifact
         run: echo "::set-output name=artifact_name::$ARTIFACT_NAME"
   upload:
     runs-on: ubuntu-latest
@@ -55,6 +56,5 @@ jobs:
         env:
           FLINK_USERNAME: ${{ secrets.FLINKUSERNAME }}
           FLINK_PASSWORD: ${{ secrets.FLINKPASSWORD }}
-          ARTIFACT_NAME: ${{ needs.build.outputs.artifact }}
         run: |
-          curl -u "$FLINK_USERNAME:$FLINK_PASSWORD" -X POST -H "Expect:" -F "jarfile=@$ARTIFACT_NAME" https://flink.schroeder.lol/jars/upload
+          curl -u "$FLINK_USERNAME:$FLINK_PASSWORD" -X POST -H "Expect:" -F "jarfile=@${{ needs.build.outputs.artifact }}" https://flink.schroeder.lol/jars/upload
