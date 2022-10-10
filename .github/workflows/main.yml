@@ -25,3 +25,8 @@ jobs:
           distribution: 'temurin'
       - name: Build
         run: mvn -B -Drevision=$GITHUB_RUN_NUMBER verify
+      - name: Upload Artifact
+          uses: actions/upload-artifact@v3
+          with:
+            name: build-artifact
+            path: target/litterbox-data-processing-*.jar
