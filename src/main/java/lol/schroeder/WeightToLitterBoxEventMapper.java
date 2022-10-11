@@ -20,8 +20,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
     private ValueState<IntermediateData> intermediateData;
     private static final double STANDBY_STD_DEV_THRESHOLD = 0.002;
     private static final double IN_BOX_STD_DEV_THRESHOLD = 0.025;
-    private static final double STANDARD_DEVIATION_THRESHOLD = 0.002;
-    private static final double Z_SCORE_THRESHOLD = 8;
+    private static final double WEIGHT_THRESHOLD = 0.25; // 1/4 lbs
     private static final long WATCHDOG_TIMER_MILLIS = 5 * 60 * 1000;
 
     @Override
@@ -53,7 +52,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
                 handleInBoxState(value);
                 break;
             case STEPPING_OUT:
-                handleSteppingOutState(value, out, ctx);
+                handleSteppingOutState(out, ctx);
                 break;
             default:
                 log.error("Unknown state encountered: {}", state);
@@ -78,7 +77,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
     @SneakyThrows
     private void handleStandbyState(ScaleWeightEvent event, KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.Context ctx) {
         WindowedRunningStats wrs = windowedRunningStats.value();
-        if (wrs.isBufferFull() && wrs.getSampleZScore(event.getValue()) > Z_SCORE_THRESHOLD) {
+        if (wrs.isBufferFull() && event.getValue() - wrs.getMean() > WEIGHT_THRESHOLD) {
             log.info("Moving from Standby to Stepping in. mean={} stdDev={} value={}", wrs.getMean(), wrs.getSampleStandardDeviation(), event.getValue());
             IntermediateData data = new IntermediateData();
             data.setStandbyMean(wrs.getMean());
@@ -108,14 +107,17 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
     @SneakyThrows
     private void handleInBoxState(ScaleWeightEvent event) {
         WindowedRunningStats wrs = windowedRunningStats.value();
-        if (wrs.getSampleZScore(event.getValue()) < -Z_SCORE_THRESHOLD) {
+        if (event.getValue() - wrs.getMean() < -WEIGHT_THRESHOLD) {
             log.info("Moving from In Box to Stepping Out. mean={} stdDev={} value={}", wrs.getMean(), wrs.getSampleStandardDeviation(), event.getValue());
+            IntermediateData data = intermediateData.value();
+            data.setEndTimestamp(event.getTime());
+            intermediateData.update(data);
             currentState.update(State.STEPPING_OUT);
         }
     }
 
     @SneakyThrows
-    private void handleSteppingOutState(ScaleWeightEvent event, Collector<LitterBoxEvent> out, KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.Context ctx) {
+    private void handleSteppingOutState(Collector<LitterBoxEvent> out, KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.Context ctx) {
         WindowedRunningStats wrs = windowedRunningStats.value();
         if (wrs.getSampleStandardDeviation() <= STANDBY_STD_DEV_THRESHOLD) {
             log.info("Moving from Stepping Out to Standby. mean={} stdDev={}", wrs.getMean(), wrs.getSampleStandardDeviation());
@@ -123,7 +125,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
             double currentMeanWeight = wrs.getMean();
 
             Instant start = Instant.ofEpochSecond(data.getStartTimestamp());
-            Instant end = Instant.ofEpochSecond(event.getTime());
+            Instant end = Instant.ofEpochSecond(data.getEndTimestamp());
 
             out.collect(LitterBoxEvent.builder()
                     .deviceId(ctx.getCurrentKey())
@@ -158,6 +160,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
         private long startTimestamp;
         private double standbyMean;
         private double inBoxMean;
+        private long endTimestamp;
         private long watchdogTimestampMillis;
     }
 }

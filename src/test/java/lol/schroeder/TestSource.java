@@ -19,7 +19,7 @@ public class TestSource implements SourceFunction<ScaleWeightEvent> {
     private List<CSVRecord> csvRecords;
 
     public TestSource() {
-        try (InputStream in = getClass().getResourceAsStream("/test-event-combined.csv")) {
+        try (InputStream in = getClass().getResourceAsStream("/test-event-missed-2.csv")) {
             csvRecords = CSVFormat.DEFAULT.builder()
                     .setHeader()
                     .setSkipHeaderRecord(true)
