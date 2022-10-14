@@ -22,7 +22,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
     private ValueState<IntermediateData> intermediateData;
     private OutputTag<LitterBoxEvent> invalidOutputTag;
     private static final double STANDBY_STD_DEV_THRESHOLD = 0.002;
-    private static final double IN_BOX_STD_DEV_THRESHOLD = 0.025;
+    private static final double IN_BOX_STD_DEV_THRESHOLD = 0.1;
     private static final double WEIGHT_THRESHOLD = 0.25; // 1/4 lbs
     private static final long WATCHDOG_TIMER_MILLIS = 5 * 60 * 1000;
 

@@ -13,13 +13,10 @@ import java.util.List;
 
 public class TestSource implements SourceFunction<ScaleWeightEvent> {
 
-    private volatile boolean running = true;
-    private static final int COUNT = 100;
-
     private List<CSVRecord> csvRecords;
 
     public TestSource() {
-        try (InputStream in = getClass().getResourceAsStream("/test-event-missed-2.csv")) {
+        try (InputStream in = getClass().getResourceAsStream("/test-event-missed-3.csv")) {
             csvRecords = CSVFormat.DEFAULT.builder()
                     .setHeader()
                     .setSkipHeaderRecord(true)
