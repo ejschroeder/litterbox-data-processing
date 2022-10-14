@@ -22,7 +22,8 @@ public class DataStreamJobTest {
     @Test
     public void test() {
         CollectSink collectSink = new CollectSink();
-        new DataStreamJob(new TestSource(), collectSink).execute();
+        CollectSink invalidEventSink = new CollectSink();
+        new DataStreamJob(new TestSource(), collectSink, invalidEventSink).execute();
         System.out.println(collectSink.getValues());
     }
 

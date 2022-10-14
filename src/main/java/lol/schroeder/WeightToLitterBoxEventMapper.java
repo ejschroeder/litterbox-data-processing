@@ -8,7 +8,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
+import java.io.IOException;
 import java.time.Instant;
 
 
@@ -18,10 +20,19 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
     private ValueState<WindowedRunningStats> windowedRunningStats;
     private ValueState<State> currentState;
     private ValueState<IntermediateData> intermediateData;
+    private OutputTag<LitterBoxEvent> invalidOutputTag;
     private static final double STANDBY_STD_DEV_THRESHOLD = 0.002;
     private static final double IN_BOX_STD_DEV_THRESHOLD = 0.025;
     private static final double WEIGHT_THRESHOLD = 0.25; // 1/4 lbs
     private static final long WATCHDOG_TIMER_MILLIS = 5 * 60 * 1000;
+
+    public WeightToLitterBoxEventMapper() {
+        this(null);
+    }
+
+    public WeightToLitterBoxEventMapper(OutputTag<LitterBoxEvent> invalidOutputTag) {
+        this.invalidOutputTag = invalidOutputTag;
+    }
 
     @Override
     public void open(Configuration parameters) {
@@ -121,29 +132,50 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
         WindowedRunningStats wrs = windowedRunningStats.value();
         if (wrs.getSampleStandardDeviation() <= STANDBY_STD_DEV_THRESHOLD) {
             log.info("Moving from Stepping Out to Standby. mean={} stdDev={}", wrs.getMean(), wrs.getSampleStandardDeviation());
+
+            LitterBoxEvent event = buildLitterboxEvent(ctx);
+
+            if (isLitterboxEventValid(event)) {
+                out.collect(event);
+            } else if (invalidOutputTag != null) {
+                ctx.output(invalidOutputTag, event);
+            }
+
             IntermediateData data = intermediateData.value();
-            double currentMeanWeight = wrs.getMean();
-
-            Instant start = Instant.ofEpochSecond(data.getStartTimestamp());
-            Instant end = Instant.ofEpochSecond(data.getEndTimestamp());
-
-            out.collect(LitterBoxEvent.builder()
-                    .deviceId(ctx.getCurrentKey())
-                    .startTime(start)
-                    .endTime(end)
-                    .catWeight(data.getInBoxMean() - currentMeanWeight)
-                    .eliminationWeight(currentMeanWeight - data.getStandbyMean())
-                    .build());
-
             ctx.timerService().deleteEventTimeTimer(data.getWatchdogTimestampMillis());
-            currentState.update(State.STANDBY);
-            intermediateData.clear();
+            resetState();
         }
+    }
+
+    private LitterBoxEvent buildLitterboxEvent(KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.Context ctx) throws IOException {
+        IntermediateData data = intermediateData.value();
+        WindowedRunningStats wrs = windowedRunningStats.value();
+
+        Instant startTime = Instant.ofEpochSecond(data.getStartTimestamp());
+        Instant endTime = Instant.ofEpochSecond(data.getEndTimestamp());
+        double catWeight = data.getInBoxMean() - wrs.getMean();
+        double eliminationWeight = wrs.getMean() - data.getStandbyMean();
+
+        return LitterBoxEvent.builder()
+                .deviceId(ctx.getCurrentKey())
+                .startTime(startTime)
+                .endTime(endTime)
+                .catWeight(catWeight)
+                .eliminationWeight(eliminationWeight)
+                .build();
+    }
+
+    private boolean isLitterboxEventValid(LitterBoxEvent event) {
+        return event.getCatWeight() > 0.25;
     }
 
     @Override
     public void onTimer(long timestamp, KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.OnTimerContext ctx, Collector<LitterBoxEvent> out) throws Exception {
         log.info("Watchdog timer called. Resetting process state. timestamp={}", timestamp);
+        resetState();
+    }
+
+    private void resetState() throws IOException {
         currentState.update(State.STANDBY);
         intermediateData.clear();
     }
