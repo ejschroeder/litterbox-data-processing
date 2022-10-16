@@ -16,22 +16,15 @@ import java.time.Instant;
 
 @Slf4j
 public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent> {
-
     private ValueState<WindowedRunningStats> windowedRunningStats;
     private ValueState<State> currentState;
     private ValueState<IntermediateData> intermediateData;
-    private OutputTag<LitterBoxEvent> invalidOutputTag;
     private static final double STANDBY_STD_DEV_THRESHOLD = 0.002;
     private static final double IN_BOX_STD_DEV_THRESHOLD = 0.1;
     private static final double WEIGHT_THRESHOLD = 0.25; // 1/4 lbs
     private static final long WATCHDOG_TIMER_MILLIS = 5 * 60 * 1000;
 
     public WeightToLitterBoxEventMapper() {
-        this(null);
-    }
-
-    public WeightToLitterBoxEventMapper(OutputTag<LitterBoxEvent> invalidOutputTag) {
-        this.invalidOutputTag = invalidOutputTag;
     }
 
     @Override
@@ -135,11 +128,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
 
             LitterBoxEvent event = buildLitterboxEvent(ctx);
 
-            if (isLitterboxEventValid(event)) {
-                out.collect(event);
-            } else if (invalidOutputTag != null) {
-                ctx.output(invalidOutputTag, event);
-            }
+            out.collect(event);
 
             IntermediateData data = intermediateData.value();
             ctx.timerService().deleteEventTimeTimer(data.getWatchdogTimestampMillis());
@@ -165,9 +154,6 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
                 .build();
     }
 
-    private boolean isLitterboxEventValid(LitterBoxEvent event) {
-        return event.getCatWeight() > 0.25;
-    }
 
     @Override
     public void onTimer(long timestamp, KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.OnTimerContext ctx, Collector<LitterBoxEvent> out) throws Exception {

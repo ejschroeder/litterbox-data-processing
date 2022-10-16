@@ -50,7 +50,8 @@ public class DataStreamJob {
 		SingleOutputStreamOperator<LitterBoxEvent> litterBoxEvents = weightEvents
 				.assignTimestampsAndWatermarks(watermarkStrategy)
 				.keyBy(ScaleWeightEvent::getDeviceId)
-				.process(new WeightToLitterBoxEventMapper(invalidEventsOutputTag));
+				.process(new WeightToLitterBoxEventMapper())
+				.process(new ValidLitterboxEventFilter(invalidEventsOutputTag));
 
 		litterBoxEvents.addSink(sink);
 		litterBoxEvents.getSideOutput(invalidEventsOutputTag).addSink(invalidEventSink);
