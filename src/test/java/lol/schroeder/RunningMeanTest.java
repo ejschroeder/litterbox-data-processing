@@ -24,7 +24,7 @@ public class RunningMeanTest {
 
     @Before
     public void setup() throws IOException {
-        try (InputStream in = getClass().getResourceAsStream("/test-event-missed-3.csv")) {
+        try (InputStream in = getClass().getResourceAsStream("/test-event-noise-missed-4.csv")) {
             csvRecords = CSVFormat.DEFAULT.builder()
                     .setHeader()
                     .setSkipHeaderRecord(true)
@@ -58,7 +58,7 @@ public class RunningMeanTest {
                     .build());
         }
 
-        try (CSVPrinter printer = new CSVPrinter(new FileWriter("out-windowed-10-test-event-missed-3.csv"), CSVFormat.DEFAULT)) {
+        try (CSVPrinter printer = new CSVPrinter(new FileWriter("out-windowed-10-test-event-noise-missed-4.csv"), CSVFormat.DEFAULT)) {
             printer.printRecord("timestamp", "sample", "mean", "sampleVariance", "sampleStandardDeviation", "zScore");
 
             for (int i = 0; i < statContainers.size() - 1; i++) {

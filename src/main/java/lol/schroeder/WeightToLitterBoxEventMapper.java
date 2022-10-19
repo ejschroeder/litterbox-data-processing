@@ -80,8 +80,8 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
 
     @SneakyThrows
     private void handleStandbyState(ScaleWeightEvent event, KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.Context ctx) {
-        WindowedRunningStats wrs = windowedRunningStats.value();
-        if (wrs.isBufferFull() && event.getValue() - wrs.getMean() > WEIGHT_THRESHOLD) {
+        if (isValidStepInEvent(event)) {
+            WindowedRunningStats wrs = windowedRunningStats.value();
             log.info("Moving from Standby to Stepping in. mean={} stdDev={} value={}", wrs.getMean(), wrs.getSampleStandardDeviation(), event.getValue());
             IntermediateData data = new IntermediateData();
             data.setStandbyMean(wrs.getMean());
@@ -97,11 +97,20 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
     }
 
     @SneakyThrows
+    private boolean isValidStepInEvent(ScaleWeightEvent event) {
+        WindowedRunningStats wrs = windowedRunningStats.value();
+        return wrs.isBufferFull()
+                && wrs.getSampleStandardDeviation() < WEIGHT_THRESHOLD
+                && event.getValue() - wrs.getMean() > WEIGHT_THRESHOLD;
+    }
+
+    @SneakyThrows
     private void handleSteppingInState() {
         WindowedRunningStats wrs = windowedRunningStats.value();
         if (wrs.getSampleStandardDeviation() <= IN_BOX_STD_DEV_THRESHOLD) {
             log.info("Moving from Stepping In to In Box mean={} stdDev={}", wrs.getMean(), wrs.getSampleStandardDeviation());
             IntermediateData data = intermediateData.value();
+
             data.setInBoxMean(wrs.getMean());
             intermediateData.update(data);
             currentState.update(State.IN_BOX);
@@ -110,14 +119,21 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
 
     @SneakyThrows
     private void handleInBoxState(ScaleWeightEvent event) {
-        WindowedRunningStats wrs = windowedRunningStats.value();
-        if (event.getValue() - wrs.getMean() < -WEIGHT_THRESHOLD) {
+        if (isValidStepOutEvent(event)) {
+            WindowedRunningStats wrs = windowedRunningStats.value();
             log.info("Moving from In Box to Stepping Out. mean={} stdDev={} value={}", wrs.getMean(), wrs.getSampleStandardDeviation(), event.getValue());
             IntermediateData data = intermediateData.value();
             data.setEndTimestamp(event.getTime());
             intermediateData.update(data);
             currentState.update(State.STEPPING_OUT);
         }
+    }
+
+    @SneakyThrows
+    private boolean isValidStepOutEvent(ScaleWeightEvent event) {
+        WindowedRunningStats wrs = windowedRunningStats.value();
+        return wrs.getSampleStandardDeviation() < WEIGHT_THRESHOLD
+                && event.getValue() - wrs.getMean() < -WEIGHT_THRESHOLD;
     }
 
     @SneakyThrows
