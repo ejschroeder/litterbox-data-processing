@@ -1,6 +1,7 @@
 package lol.schroeder;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.api.common.state.ValueState;
@@ -8,13 +9,13 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
 import java.time.Instant;
 
 
 @Slf4j
+@NoArgsConstructor
 public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent> {
     private ValueState<WindowedRunningStats> windowedRunningStats;
     private ValueState<State> currentState;
@@ -23,9 +24,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
     private static final double IN_BOX_STD_DEV_THRESHOLD = 0.1;
     private static final double WEIGHT_THRESHOLD = 0.25; // 1/4 lbs
     private static final long WATCHDOG_TIMER_MILLIS = 5 * 60 * 1000;
-
-    public WeightToLitterBoxEventMapper() {
-    }
+    public static final double STEP_OUT_WEIGHT_THRESHOLD_PERCENTAGE = .5;
 
     @Override
     public void open(Configuration parameters) {
@@ -131,9 +130,9 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
 
     @SneakyThrows
     private boolean isValidStepOutEvent(ScaleWeightEvent event) {
-        WindowedRunningStats wrs = windowedRunningStats.value();
-        return wrs.getSampleStandardDeviation() < WEIGHT_THRESHOLD
-                && event.getValue() - wrs.getMean() < -WEIGHT_THRESHOLD;
+        IntermediateData data = intermediateData.value();
+        return (event.getValue() - data.getStandbyMean()) <
+                STEP_OUT_WEIGHT_THRESHOLD_PERCENTAGE * (data.getInBoxMean() - data.getStandbyMean());
     }
 
     @SneakyThrows
@@ -142,7 +141,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
         if (wrs.getSampleStandardDeviation() <= STANDBY_STD_DEV_THRESHOLD) {
             log.info("Moving from Stepping Out to Standby. mean={} stdDev={}", wrs.getMean(), wrs.getSampleStandardDeviation());
 
-            LitterBoxEvent event = buildLitterboxEvent(ctx);
+            LitterBoxEvent event = buildLitterBoxEvent(ctx);
 
             out.collect(event);
 
@@ -152,7 +151,7 @@ public class WeightToLitterBoxEventMapper extends KeyedProcessFunction<String, S
         }
     }
 
-    private LitterBoxEvent buildLitterboxEvent(KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.Context ctx) throws IOException {
+    private LitterBoxEvent buildLitterBoxEvent(KeyedProcessFunction<String, ScaleWeightEvent, LitterBoxEvent>.Context ctx) throws IOException {
         IntermediateData data = intermediateData.value();
         WindowedRunningStats wrs = windowedRunningStats.value();
 

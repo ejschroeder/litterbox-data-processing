@@ -51,12 +51,12 @@ public class DataStreamJob {
 				.assignTimestampsAndWatermarks(watermarkStrategy)
 				.keyBy(ScaleWeightEvent::getDeviceId)
 				.process(new WeightToLitterBoxEventMapper())
-				.process(new ValidLitterboxEventFilter(invalidEventsOutputTag));
+				.process(new ValidLitterBoxEventFilter(invalidEventsOutputTag));
 
 		litterBoxEvents.addSink(sink);
 		litterBoxEvents.getSideOutput(invalidEventsOutputTag).addSink(invalidEventSink);
 
-		return env.execute("Litterbox Data Processing");
+		return env.execute("Litter Box Data Processing");
 	}
 
 	public static void main(String[] args) {
