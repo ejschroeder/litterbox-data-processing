@@ -24,7 +24,7 @@ public class RunningMeanTest {
 
     @Before
     public void setup() throws IOException {
-        try (InputStream in = getClass().getResourceAsStream("/test-event-noise-missed-4.csv")) {
+        try (InputStream in = getClass().getResourceAsStream("/scoop-dataset.csv")) {
             csvRecords = CSVFormat.DEFAULT.builder()
                     .setHeader()
                     .setSkipHeaderRecord(true)
@@ -40,7 +40,7 @@ public class RunningMeanTest {
 
         csvRecords.sort(Comparator.comparing(csvRecord -> csvRecord.get(2)));
 
-        WindowedRunningStats wrm = new WindowedRunningStats(10);
+        WindowedRunningStats wrm = new WindowedRunningStats(20);
         for (CSVRecord csvRecord : csvRecords) {
             double sample = Double.parseDouble(csvRecord.get(1));
             String timestamp = csvRecord.get(2);
@@ -58,7 +58,7 @@ public class RunningMeanTest {
                     .build());
         }
 
-        try (CSVPrinter printer = new CSVPrinter(new FileWriter("out-windowed-10-test-event-noise-missed-4.csv"), CSVFormat.DEFAULT)) {
+        try (CSVPrinter printer = new CSVPrinter(new FileWriter("out-scoop-dataset-20.csv"), CSVFormat.DEFAULT)) {
             printer.printRecord("timestamp", "sample", "mean", "sampleVariance", "sampleStandardDeviation", "zScore");
 
             for (int i = 0; i < statContainers.size() - 1; i++) {

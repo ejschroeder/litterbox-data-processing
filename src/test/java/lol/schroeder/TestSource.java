@@ -16,7 +16,7 @@ public class TestSource implements SourceFunction<ScaleWeightEvent> {
     private List<CSVRecord> csvRecords;
 
     public TestSource() {
-        try (InputStream in = getClass().getResourceAsStream("/test-event-noise-missed-4.csv")) {
+        try (InputStream in = getClass().getResourceAsStream("/scoop-dataset.csv")) {
             csvRecords = CSVFormat.DEFAULT.builder()
                     .setHeader()
                     .setSkipHeaderRecord(true)
